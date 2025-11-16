@@ -1,0 +1,12 @@
+FROM jenkins-with-docker-node:latest
+
+USER root
+
+# Install docker.io, curl, unzip, zip
+RUN apt update && apt install -y docker.io curl unzip zip
+
+# Install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs
+
+USER jenkins
+
