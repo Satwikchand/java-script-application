@@ -1,0 +1,60 @@
+name: JavaScript App CI/CD
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'  # Adjust as needed
+
+      - name: Verify Node & NPM
+        run: |
+          node -v
+          npm -v
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -O sonar-scanner.zip
+          unzip sonar-scanner.zip
+          mv sonar-scanner-5.0.1.3006-linux sonar-scanner
+          ./sonar-scanner/bin/sonar-scanner \
+            -Dsonar.projectKey=java-script \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=http://3.135.223.168:9000 \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+      - name: Build Project
+        run: npm run build
+
+      - name: Prepare Artifact
+        run: |
+          zip -r build.zip build/
+
+      - name: Upload to Nexus
+        env:
+          NEXUS_URL: http://3.135.223.168:8081
+          NEXUS_REPO: maven-releases
+          USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: |
+          curl -v \
+            -u "${USERNAME}:${PASSWORD}" \
+            --upload-file build.zip \
+            "${NEXUS_URL}/repository/${NEXUS_REPO}/com/javascript/app/react-build/1.0.0/react-build-1.0.0.zip"
